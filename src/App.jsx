@@ -365,6 +365,180 @@ function CollectionView({ collection, setCollection }) {
   );
 }
 
+// ─── CARD PRICE SEARCH ─────────────────────────────────────────────
+function CardSearch() {
+  const [form, setForm] = useState({ name: "", player: "", year: "", set: "", grade: "", condition: "", category: "all" });
+  const [searched, setSearched] = useState(false);
+
+  const buildQuery = () => {
+    const parts = [form.name, form.player, form.year, form.set, form.grade, form.condition]
+      .filter(Boolean).join(" ");
+    return parts;
+  };
+
+  const buildEbayUrl = (sold) => {
+    const q = encodeURIComponent(buildQuery() + " trading card");
+    const base = `https://www.ebay.com/sch/i.html?_nkw=${q}&_sacat=0`;
+    return sold ? base + "&LH_Complete=1&LH_Sold=1" : base;
+  };
+
+  const buildTCGUrl = () => {
+    const q = encodeURIComponent(buildQuery());
+    return `https://www.tcgplayer.com/search/all/product?q=${q}`;
+  };
+
+  const build130pointUrl = () => {
+    const q = encodeURIComponent(buildQuery());
+    return `https://130point.com/sales/?query=${q}`;
+  };
+
+  const buildPSAUrl = () => {
+    const q = encodeURIComponent(buildQuery());
+    return `https://www.psacard.com/auctionprices/search?q=${q}`;
+  };
+
+  const hasQuery = buildQuery().trim().length > 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div style={{ fontSize: "0.75rem", color: "#444", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "1px" }}>
+        Search by any combination — name, player, year, set, grade. Opens real sold listings.
+      </div>
+
+      {/* Search Form */}
+      <div style={{ background: "#12121e", borderRadius: "14px", border: "1px solid #1e1e30", padding: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px", marginBottom: "16px" }}>
+          {[
+            { key: "name", label: "Card Name", placeholder: "e.g. Charizard, Prizm" },
+            { key: "player", label: "Player / Character", placeholder: "e.g. LeBron James" },
+            { key: "year", label: "Year", placeholder: "e.g. 2018, 2003" },
+            { key: "set", label: "Set", placeholder: "e.g. Topps Chrome, Base Set" },
+          ].map(f => (
+            <div key={f.key}>
+              <label style={{ fontSize: "0.65rem", color: "#555", display: "block", marginBottom: "4px", letterSpacing: "1px", textTransform: "uppercase", fontFamily: "'Barlow Condensed', sans-serif" }}>{f.label}</label>
+              <input
+                value={form[f.key]}
+                onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+                placeholder={f.placeholder}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", borderRadius: "8px", color: "#e2e2ee", padding: "8px 12px", fontFamily: "inherit", fontSize: "0.8rem" }}
+              />
+            </div>
+          ))}
+          <div>
+            <label style={{ fontSize: "0.65rem", color: "#555", display: "block", marginBottom: "4px", letterSpacing: "1px", textTransform: "uppercase", fontFamily: "'Barlow Condensed', sans-serif" }}>Grade</label>
+            <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} style={{ width: "100%", background: "#1a1a2e", border: "1px solid #2a2a3e", borderRadius: "8px", color: "#e2e2ee", padding: "8px 12px", fontFamily: "inherit", fontSize: "0.8rem" }}>
+              <option value="">Any Grade</option>
+              {["PSA 10", "PSA 9", "PSA 8", "PSA 7", "BGS 10", "BGS 9.5", "SGC 10", "Raw"].map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: "0.65rem", color: "#555", display: "block", marginBottom: "4px", letterSpacing: "1px", textTransform: "uppercase", fontFamily: "'Barlow Condensed', sans-serif" }}>Category</label>
+            <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} style={{ width: "100%", background: "#1a1a2e", border: "1px solid #2a2a3e", borderRadius: "8px", color: "#e2e2ee", padding: "8px 12px", fontFamily: "inherit", fontSize: "0.8rem" }}>
+              <option value="all">All Categories</option>
+              {CATEGORIES.map(c => <option key={c} value={c}>{CAT_LABELS[c]}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Search preview */}
+        {hasQuery && (
+          <div style={{ background: "rgba(29,78,216,0.08)", borderRadius: "8px", padding: "10px 14px", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ fontSize: "0.65rem", color: "#555", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "1px", textTransform: "uppercase", flexShrink: 0 }}>Searching for:</div>
+            <div style={{ fontSize: "0.8rem", color: "#1d4ed8", fontWeight: "700", fontFamily: "'Space Mono', monospace" }}>"{buildQuery()}"</div>
+          </div>
+        )}
+
+        <button onClick={() => setSearched(true)} disabled={!hasQuery} style={{ padding: "10px 24px", borderRadius: "8px", background: hasQuery ? "#1d4ed8" : "#1e1e30", border: "none", color: hasQuery ? "white" : "#444", fontSize: "0.875rem", fontWeight: "700", cursor: hasQuery ? "pointer" : "default", fontFamily: "inherit" }}>
+          Find This Card →
+        </button>
+      </div>
+
+      {/* Results — price source buttons */}
+      {searched && hasQuery && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ fontSize: "0.7rem", color: "#444", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "2px", textTransform: "uppercase" }}>Check prices on these platforms:</div>
+
+          {[
+            {
+              label: "eBay — Sold Listings (Most Accurate)",
+              sub: "See what this card actually sold for recently",
+              url: buildEbayUrl(true),
+              color: "#E53238",
+              tag: "BEST FOR REAL PRICES",
+            },
+            {
+              label: "eBay — Active Listings",
+              sub: "See what people are currently asking",
+              url: buildEbayUrl(false),
+              color: "#E53238",
+              tag: "CURRENT ASKING PRICE",
+            },
+            {
+              label: "TCGplayer Market Price",
+              sub: "Best for Pokémon, Magic, and Yu-Gi-Oh",
+              url: buildTCGUrl(),
+              color: "#1d4ed8",
+              tag: "GREAT FOR POKEMON",
+            },
+            {
+              label: "130point — Graded Sales",
+              sub: "PSA and BGS graded card sales history",
+              url: build130pointUrl(),
+              color: "#00C896",
+              tag: "GRADED CARDS",
+            },
+            {
+              label: "PSA Auction Prices",
+              sub: "Official PSA auction price history",
+              url: buildPSAUrl(),
+              color: "#FFB800",
+              tag: "PSA CERTIFIED",
+            },
+          ].map((s, i) => (
+            <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+              <div style={{ background: "#12121e", borderRadius: "12px", border: `1px solid ${s.color}22`, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", transition: "all 0.15s", cursor: "pointer" }}>
+                <div>
+                  <div style={{ fontWeight: "700", fontSize: "0.875rem", color: "#e2e2ee", marginBottom: "2px" }}>{s.label}</div>
+                  <div style={{ fontSize: "0.72rem", color: "#555", fontFamily: "'Barlow Condensed', sans-serif" }}>{s.sub}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+                  <span style={{ fontSize: "0.6rem", fontWeight: "700", padding: "3px 8px", borderRadius: "20px", background: s.color + "18", color: s.color, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.5px", whiteSpace: "nowrap" }}>{s.tag}</span>
+                  <span style={{ color: s.color, fontSize: "1rem" }}>↗</span>
+                </div>
+              </div>
+            </a>
+          ))}
+
+          <div style={{ background: "rgba(29,78,216,0.06)", borderRadius: "10px", border: "1px solid rgba(29,78,216,0.15)", padding: "12px 16px", marginTop: "4px" }}>
+            <div style={{ fontSize: "0.7rem", color: "#1d4ed8", fontWeight: "700", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "1px", marginBottom: "4px" }}>💡 PRO TIP</div>
+            <div style={{ fontSize: "0.78rem", color: "#666", lineHeight: 1.5 }}>Always check eBay <strong style={{ color: "#aaa" }}>sold listings</strong> first — that's the real market price. Active listings can be inflated. What a card sold for last week is what it's actually worth today.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick searches */}
+      {!searched && (
+        <div>
+          <div style={{ fontSize: "0.65rem", color: "#333", textTransform: "uppercase", letterSpacing: "2px", marginBottom: "10px", fontFamily: "'Barlow Condensed', sans-serif" }}>Quick searches</div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            {[
+              { name: "Charizard", year: "1999", set: "Base Set", grade: "PSA 10" },
+              { name: "Prizm", player: "LeBron James", year: "2012" },
+              { name: "Rookie", player: "Wembanyama", year: "2023" },
+              { name: "Pikachu", set: "Base Set", grade: "PSA 9" },
+              { name: "Prizm Silver", player: "Luka Doncic", year: "2018" },
+            ].map((s, i) => (
+              <button key={i} onClick={() => { setForm({ ...form, ...s }); setSearched(false); }} style={{ padding: "6px 14px", borderRadius: "20px", background: "rgba(29,78,216,0.1)", color: "#1d4ed8", fontSize: "0.72rem", fontWeight: "700", border: "1px solid rgba(29,78,216,0.2)", cursor: "pointer", fontFamily: "inherit" }}>
+                {[s.player, s.name, s.year, s.grade].filter(Boolean).join(" · ")}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── FLIP FINDER ───────────────────────────────────────────────────
 function FlipFinder() {
   const [query, setQuery] = useState("");
@@ -659,7 +833,8 @@ export default function TheSlabPulls() {
 
   const TABS = [
     { id: "collection", label: "My Collection", icon: "🃏" },
-    { id: "flip", label: "Flip Finder", icon: "🔍" },
+    { id: "search", label: "Card Search", icon: "🔎" },
+    { id: "flip", label: "Flip Finder", icon: "💡" },
     { id: "want", label: "Want List", icon: "⭐" },
     { id: "sold", label: "Sold / Profits", icon: "💸" },
   ];
@@ -697,6 +872,7 @@ export default function TheSlabPulls() {
       {/* Content */}
       <div style={{ maxWidth: "900px", margin: "0 auto", padding: "24px 16px" }}>
         {tab === "collection" && <CollectionView collection={collection} setCollection={setCollection} />}
+        {tab === "search" && <CardSearch />}
         {tab === "flip" && <FlipFinder />}
         {tab === "want" && <WantList wantList={wantList} setWantList={setWantList} />}
         {tab === "sold" && <SoldTracker sold={sold} setSold={setSold} />}
