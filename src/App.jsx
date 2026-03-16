@@ -369,11 +369,87 @@ function CollectionView({ collection, setCollection }) {
 function CardSearch() {
   const [form, setForm] = useState({ name: "", player: "", year: "", set: "", grade: "", condition: "", category: "all" });
   const [searched, setSearched] = useState(false);
+  const [scanMode, setScanMode] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const fileRef = useRef(null);
 
   const buildQuery = () => {
     const parts = [form.name, form.player, form.year, form.set, form.grade, form.condition]
       .filter(Boolean).join(" ");
     return parts;
+  };
+
+  const handlePhotoScan = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setScanning(true);
+    setScanResult(null);
+    setSearched(false);
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = (ev) => setPreviewUrl(ev.target.result);
+    reader.readAsDataURL(file);
+
+    // Convert to base64 for API
+    const base64 = await new Promise((resolve) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(",")[1]);
+      r.readAsDataURL(file);
+    });
+
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: `You are a trading card identification expert. Analyze the card image and extract all details. Respond ONLY in JSON:
+{
+  "name": "card name or character name",
+  "player": "player or character name if applicable",
+  "year": "year as 4 digit string",
+  "set": "set name",
+  "cardNumber": "card number if visible",
+  "brand": "Panini, Topps, Upper Deck, Pokemon Company, etc",
+  "parallel": "Prizm, Holo, Refractor, Silver, Gold, etc or null",
+  "category": "pokemon|sports|magic|yugioh|other",
+  "sport": "basketball|football|baseball|soccer|other or null",
+  "condition": "M|NM|LP|MP|HP based on visible wear",
+  "estimatedValue": "rough estimate like $20-50 or Unknown",
+  "confidence": "high|medium|low",
+  "notes": "any other identifying details under 15 words"
+}`,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
+              { type: "text", text: "Identify this trading card and extract all details." }
+            ]
+          }]
+        })
+      });
+      const data = await res.json();
+      const parsed = JSON.parse(data.content[0].text.replace(/```json|```/g, "").trim());
+      setScanResult(parsed);
+
+      // Auto-fill the form
+      setForm({
+        name: [parsed.parallel, parsed.name].filter(Boolean).join(" ") || "",
+        player: parsed.player || "",
+        year: parsed.year || "",
+        set: [parsed.brand, parsed.set].filter(Boolean).join(" ") || "",
+        grade: "",
+        condition: parsed.condition || "",
+        category: parsed.category || "other",
+      });
+    } catch {
+      setScanResult({ name: "Could not identify", confidence: "low", notes: "Try a clearer photo in better lighting" });
+    }
+    setScanning(false);
   };
 
   const buildEbayUrl = (sold) => {
@@ -401,9 +477,99 @@ function CardSearch() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      <div style={{ fontSize: "0.75rem", color: "#444", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "1px" }}>
-        Search by any combination — name, player, year, set, grade. Opens real sold listings.
+
+      {/* Mode toggle */}
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button onClick={() => setScanMode(false)} style={{ padding: "8px 20px", borderRadius: "8px", background: !scanMode ? "#1d4ed8" : "rgba(255,255,255,0.05)", border: "none", color: !scanMode ? "white" : "#666", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", fontFamily: "inherit" }}>
+          🔎 Manual Search
+        </button>
+        <button onClick={() => setScanMode(true)} style={{ padding: "8px 20px", borderRadius: "8px", background: scanMode ? "#1d4ed8" : "rgba(255,255,255,0.05)", border: "none", color: scanMode ? "white" : "#666", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", fontFamily: "inherit" }}>
+          📸 Scan Card Photo
+        </button>
       </div>
+
+      {/* PHOTO SCAN MODE */}
+      {scanMode && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ fontSize: "0.75rem", color: "#444", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "1px" }}>
+            Take a photo of any card — AI will identify it and fill in all the details automatically
+          </div>
+
+          {/* Upload area */}
+          <div
+            onClick={() => fileRef.current?.click()}
+            style={{ background: "#12121e", borderRadius: "14px", border: `2px dashed ${scanning ? "#1d4ed8" : "#2a2a3e"}`, padding: "32px", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", cursor: "pointer", transition: "all 0.2s" }}
+          >
+            <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoScan} style={{ display: "none" }} />
+
+            {previewUrl ? (
+              <img src={previewUrl} alt="Card" style={{ maxHeight: "200px", maxWidth: "100%", borderRadius: "8px", objectFit: "contain" }} />
+            ) : (
+              <>
+                <div style={{ fontSize: "3rem" }}>📸</div>
+                <div style={{ fontWeight: "700", color: "#e2e2ee", fontSize: "0.9rem" }}>Tap to take a photo or upload</div>
+                <div style={{ fontSize: "0.75rem", color: "#444", fontFamily: "'Barlow Condensed', sans-serif" }}>Works with any trading card — Pokémon, sports, Magic, Yu-Gi-Oh</div>
+              </>
+            )}
+
+            {scanning && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#1d4ed8", fontSize: "0.85rem", fontWeight: "700" }}>
+                <div style={{ width: "16px", height: "16px", borderRadius: "50%", border: "2px solid #1d4ed8", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                Identifying card...
+              </div>
+            )}
+          </div>
+
+          {/* Scan result */}
+          {scanResult && !scanning && (
+            <div style={{ background: "#12121e", borderRadius: "14px", border: `1px solid ${scanResult.confidence === "high" ? "#00C89633" : scanResult.confidence === "medium" ? "#FFB80033" : "#FF5C5C33"}`, overflow: "hidden" }}>
+              <div style={{ padding: "14px 18px", borderBottom: "1px solid #1a1a28", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+                <div style={{ fontWeight: "700", color: "#e2e2ee", fontSize: "0.9rem" }}>
+                  {scanResult.player ? `${scanResult.player} — ` : ""}{scanResult.name}
+                </div>
+                <span style={{ fontSize: "0.65rem", fontWeight: "700", padding: "3px 10px", borderRadius: "20px", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "1px", background: scanResult.confidence === "high" ? "rgba(0,200,150,0.15)" : scanResult.confidence === "medium" ? "rgba(255,184,0,0.15)" : "rgba(255,92,92,0.15)", color: scanResult.confidence === "high" ? "#00C896" : scanResult.confidence === "medium" ? "#FFB800" : "#FF5C5C" }}>
+                  {scanResult.confidence?.toUpperCase()} CONFIDENCE
+                </span>
+              </div>
+              <div style={{ padding: "14px 18px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "10px" }}>
+                {[
+                  { label: "Year", value: scanResult.year },
+                  { label: "Set", value: scanResult.set },
+                  { label: "Brand", value: scanResult.brand },
+                  { label: "Parallel", value: scanResult.parallel || "Base" },
+                  { label: "Card #", value: scanResult.cardNumber || "—" },
+                  { label: "Condition", value: scanResult.condition },
+                  { label: "Category", value: CAT_LABELS[scanResult.category] || scanResult.category },
+                  { label: "Est. Value", value: scanResult.estimatedValue },
+                ].map((s, i) => s.value && (
+                  <div key={i} style={{ background: "rgba(255,255,255,0.03)", borderRadius: "8px", padding: "8px 12px" }}>
+                    <div style={{ fontSize: "0.6rem", color: "#444", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "2px", fontFamily: "'Barlow Condensed', sans-serif" }}>{s.label}</div>
+                    <div style={{ fontSize: "0.82rem", color: "#e2e2ee", fontWeight: "500" }}>{s.value}</div>
+                  </div>
+                ))}
+              </div>
+              {scanResult.notes && (
+                <div style={{ padding: "0 18px 14px", fontSize: "0.75rem", color: "#555", fontStyle: "italic" }}>💡 {scanResult.notes}</div>
+              )}
+              <div style={{ padding: "0 18px 16px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button onClick={() => { setScanMode(false); setSearched(true); }} style={{ padding: "8px 18px", borderRadius: "8px", background: "#1d4ed8", border: "none", color: "white", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", fontFamily: "inherit" }}>
+                  Search This Card →
+                </button>
+                <button onClick={() => { setPreviewUrl(null); setScanResult(null); fileRef.current.click(); }} style={{ padding: "8px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", color: "#888", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>
+                  Scan Another
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MANUAL SEARCH MODE */}
+      {!scanMode && (
+        <>
+          <div style={{ fontSize: "0.75rem", color: "#444", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "1px" }}>
+            Search by any combination — name, player, year, set, grade. Opens real sold listings.
+          </div>
 
       {/* Search Form */}
       <div style={{ background: "#12121e", borderRadius: "14px", border: "1px solid #1e1e30", padding: "20px" }}>
@@ -534,6 +700,8 @@ function CardSearch() {
             ))}
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
@@ -848,6 +1016,7 @@ export default function TheSlabPulls() {
         input, select { outline: none; } input:focus, select:focus { border-color: rgba(29,78,216,0.5) !important; }
         a:hover { opacity: 0.8; }
         button:active { transform: scale(0.98); }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
       {/* Header */}
