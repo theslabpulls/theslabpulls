@@ -473,21 +473,52 @@ Respond ONLY in valid JSON with NO extra text:
         })
       });
       const data = await res.json();
-      const parsed = JSON.parse(data.content[0].text.replace(/```json|```/g, "").trim());
-      setScanResult(parsed);
+      const rawText = data.content?.[0]?.text || "";
+      
+      // Try multiple JSON extraction methods
+      let parsed = null;
+      
+      // Method 1: direct parse
+      try { parsed = JSON.parse(rawText); } catch {}
+      
+      // Method 2: strip markdown fences
+      if (!parsed) {
+        try { parsed = JSON.parse(rawText.replace(/```json|```/g, "").trim()); } catch {}
+      }
+      
+      // Method 3: extract JSON object from text
+      if (!parsed) {
+        try {
+          const match = rawText.match(/\{[\s\S]*\}/);
+          if (match) parsed = JSON.parse(match[0]);
+        } catch {}
+      }
 
-      // Auto-fill the form
-      setForm({
-        name: [parsed.parallel, parsed.name].filter(Boolean).join(" ") || "",
-        player: parsed.player || "",
-        year: parsed.year || "",
-        set: [parsed.brand, parsed.set].filter(Boolean).join(" ") || "",
-        grade: "",
-        condition: parsed.condition || "",
-        category: parsed.category || "other",
+      if (parsed) {
+        setScanResult(parsed);
+        setForm({
+          name: [parsed.parallel !== "Base" ? parsed.parallel : null, parsed.name].filter(Boolean).join(" ") || "",
+          player: parsed.player || "",
+          year: parsed.year || "",
+          set: [parsed.brand, parsed.set].filter(Boolean).join(" ") || "",
+          grade: parsed.grade || "",
+          condition: parsed.condition || "",
+          category: parsed.category || "other",
+        });
+      } else {
+        // Show raw response for debugging
+        setScanResult({ 
+          name: "Parse error — tap Scan Another and retry", 
+          confidence: "low", 
+          notes: rawText.slice(0, 100) 
+        });
+      }
+    } catch (err) {
+      setScanResult({ 
+        name: "Could not identify", 
+        confidence: "low", 
+        notes: err?.message || "Try a clearer photo in better lighting" 
       });
-    } catch {
-      setScanResult({ name: "Could not identify", confidence: "low", notes: "Try a clearer photo in better lighting" });
     }
     setScanning(false);
   };
