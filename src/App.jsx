@@ -392,41 +392,24 @@ function CardSearch() {
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
 
-    // Convert to base64 for API — force JPEG conversion for all formats including HEIC
+    // Convert to base64 for API — aggressive compression for mobile
     const base64 = await new Promise((resolve) => {
       const img = new Image();
       const objectUrl = URL.createObjectURL(file);
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        // 1600px max — sharp enough for text, small enough to send
-        const maxSize = 1600;
+        // Keep it small — 800px is plenty for AI to read text
+        const maxSize = 800;
         let w = img.width;
         let h = img.height;
-        if (w > maxSize || h > maxSize) {
-          if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
-          else { w = Math.round(w * maxSize / h); h = maxSize; }
-        }
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else { w = Math.round(w * maxSize / h); h = maxSize; }
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext("2d");
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
         ctx.drawImage(img, 0, 0, w, h);
-        // 0.85 quality — good balance of sharpness vs file size
-        const jpeg = canvas.toDataURL("image/jpeg", 0.85);
         URL.revokeObjectURL(objectUrl);
-        const base64str = jpeg.split(",")[1];
-        // If still too large, reduce further
-        if (base64str.length > 1500000) {
-          const canvas2 = document.createElement("canvas");
-          canvas2.width = Math.round(w * 0.7);
-          canvas2.height = Math.round(h * 0.7);
-          const ctx2 = canvas2.getContext("2d");
-          ctx2.drawImage(img, 0, 0, canvas2.width, canvas2.height);
-          resolve(canvas2.toDataURL("image/jpeg", 0.8).split(",")[1]);
-        } else {
-          resolve(base64str);
-        }
+        resolve(canvas.toDataURL("image/jpeg", 0.7).split(",")[1]);
       };
       img.onerror = () => {
         const r = new FileReader();
