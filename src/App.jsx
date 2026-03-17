@@ -406,28 +406,43 @@ function CardSearch() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: `You are a trading card identification expert. Analyze the card image and extract all details. Respond ONLY in JSON:
+          max_tokens: 1500,
+          system: `You are the world's best trading card identification expert with 30 years of experience. You can identify ANY trading card from ANY angle or photo quality. You NEVER say you can't identify a card — you always make your best determination based on ALL visual clues available.
+
+CRITICAL RULES:
+- ALWAYS commit to a specific answer — never leave fields blank if you can make a reasonable guess
+- ALWAYS set confidence to "high" if you can read the player name, year, or set name clearly
+- ALWAYS set confidence to "medium" if you can identify the sport, brand, or character even if some details are unclear
+- Only set confidence to "low" if the image is completely unreadable or not a trading card at all
+- For sports cards: read the jersey number, team colors, uniform style, and logo to identify the player and team even if the name is hard to read
+- For Pokémon: identify by the artwork, colors, and card layout — you know every Pokémon
+- For the year: look at the card design, set logo, and any visible copyright text
+- For the set: identify from the set logo, card back design, foil pattern, and border style
+- For parallels: Prizm cards have rainbow/chrome shine, Holo cards have holographic patterns, Refractors have a refractive shine
+- For condition: NM means near perfect, LP means light wear on corners/edges, MP means noticeable wear
+- For estimated value: give a specific dollar range based on your knowledge of the current market — never say Unknown
+
+Respond ONLY in valid JSON with NO extra text:
 {
-  "name": "card name or character name",
-  "player": "player or character name if applicable",
-  "year": "year as 4 digit string",
-  "set": "set name",
-  "cardNumber": "card number if visible",
-  "brand": "Panini, Topps, Upper Deck, Pokemon Company, etc",
-  "parallel": "Prizm, Holo, Refractor, Silver, Gold, etc or null",
+  "name": "specific card name — never generic",
+  "player": "full player or character name",
+  "year": "4 digit year — make your best guess from card design if not visible",
+  "set": "specific set name",
+  "cardNumber": "card number if visible or null",
+  "brand": "Panini|Topps|Upper Deck|Pokemon Company|Fleer|Donruss|Score|Bowman|Leaf",
+  "parallel": "Base|Prizm|Holo|Refractor|Silver|Gold|Rainbow|Chrome|Mosaic|Optic|null",
   "category": "pokemon|sports|magic|yugioh|other",
-  "sport": "basketball|football|baseball|soccer|other or null",
-  "condition": "M|NM|LP|MP|HP based on visible wear",
-  "estimatedValue": "rough estimate like $20-50 or Unknown",
+  "sport": "basketball|football|baseball|soccer|hockey|other|null",
+  "condition": "M|NM|LP|MP|HP",
+  "estimatedValue": "specific range like $15-25 or $100-150",
   "confidence": "high|medium|low",
-  "notes": "any other identifying details under 15 words"
+  "notes": "key identifying detail that confirms this identification under 15 words"
 }`,
           messages: [{
             role: "user",
             content: [
               { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
-              { type: "text", text: "Identify this trading card and extract all details." }
+              { type: "text", text: "Identify this trading card completely. Use every visual clue available — jersey numbers, team colors, card design, logos, foil patterns, everything. Commit to your best answer for every field." }
             ]
           }]
         })
@@ -550,6 +565,18 @@ function CardSearch() {
               </div>
               {scanResult.notes && (
                 <div style={{ padding: "0 18px 14px", fontSize: "0.75rem", color: "#555", fontStyle: "italic" }}>💡 {scanResult.notes}</div>
+              )}
+              {scanResult.confidence === "low" && (
+                <div style={{ margin: "0 18px 14px", background: "rgba(255,184,0,0.08)", border: "1px solid rgba(255,184,0,0.2)", borderRadius: "8px", padding: "10px 14px" }}>
+                  <div style={{ fontSize: "0.72rem", color: "#FFB800", fontWeight: "700", marginBottom: "4px", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "1px" }}>TRY THESE FOR BETTER RESULTS</div>
+                  <div style={{ fontSize: "0.75rem", color: "#888", lineHeight: 1.6 }}>
+                    • Lay card flat on a plain white or dark surface<br/>
+                    • Make sure the full card is in frame<br/>
+                    • Avoid glare — don't shoot directly under a light<br/>
+                    • Get close enough so text is readable<br/>
+                    • Clean the card surface if dusty
+                  </div>
+                </div>
               )}
               <div style={{ padding: "0 18px 16px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 <button onClick={() => { setScanMode(false); setSearched(true); }} style={{ padding: "8px 18px", borderRadius: "8px", background: "#1d4ed8", border: "none", color: "white", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", fontFamily: "inherit" }}>
