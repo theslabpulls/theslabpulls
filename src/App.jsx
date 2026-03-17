@@ -380,12 +380,12 @@ function CardSearch({ collection, setCollection }) {
   const [scanResult, setScanResult] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [buyPrice, setBuyPrice] = useState("");
+  const [currentValue, setCurrentValue] = useState("");
   const [saved, setSaved] = useState(false);
   const fileRef = useRef(null);
 
   const saveToCollection = () => {
     if (!scanResult) return;
-    const estValue = parseFloat((scanResult.estimatedValue || "0").replace(/[^0-9.]/g, "")) || 0;
     const newCard = {
       id: Date.now(),
       name: scanResult.player ? `${scanResult.player} ${scanResult.name || ""}`.trim() : (scanResult.name || "Unknown Card"),
@@ -393,7 +393,7 @@ function CardSearch({ collection, setCollection }) {
       condition: scanResult.condition || "NM",
       grade: scanResult.grade || "Raw",
       buyPrice: parseFloat(buyPrice) || 0,
-      currentValue: estValue,
+      currentValue: parseFloat(currentValue) || parseFloat(buyPrice) || 0,
       category: scanResult.category || "other",
       qty: 1,
       notes: `Scanned. ${scanResult.parallel && scanResult.parallel !== "Base" ? scanResult.parallel + " parallel. " : ""}${scanResult.notes || ""}`.trim(),
@@ -619,7 +619,7 @@ function CardSearch({ collection, setCollection }) {
                   { label: "Card #", value: scanResult.cardNumber || "—" },
                   { label: "Condition", value: scanResult.condition },
                   { label: "Category", value: CAT_LABELS[scanResult.category] || scanResult.category },
-                  { label: "Est. Value", value: scanResult.estimatedValue },
+                  { label: "Grade", value: scanResult.grade || "Raw" },
                 ].map((s, i) => s.value && (
                   <div key={i} style={{ background: "rgba(255,255,255,0.03)", borderRadius: "8px", padding: "8px 12px" }}>
                     <div style={{ fontSize: "0.6rem", color: "#444", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "2px", fontFamily: "'Barlow Condensed', sans-serif" }}>{s.label}</div>
@@ -628,7 +628,25 @@ function CardSearch({ collection, setCollection }) {
                 ))}
               </div>
               {scanResult.notes && (
-                <div style={{ padding: "0 18px 14px", fontSize: "0.75rem", color: "#555", fontStyle: "italic" }}>💡 {scanResult.notes}</div>
+                <div style={{ padding: "0 18px 10px", fontSize: "0.75rem", color: "#555", fontStyle: "italic" }}>💡 {scanResult.notes}</div>
+              )}
+
+              {/* Real price check links */}
+              {scanResult.confidence !== "low" && scanResult.player && (
+                <div style={{ margin: "0 18px 14px", background: "rgba(0,200,150,0.06)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: "10px", padding: "12px 14px" }}>
+                  <div style={{ fontSize: "0.65rem", color: "#00C896", fontWeight: "700", marginBottom: "8px", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "1px" }}>CHECK REAL PRICE BEFORE SAVING</div>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                    {[
+                      { label: "Sports Card Pro", url: `https://www.sportscardspro.com/search-results?q=${encodeURIComponent([scanResult.player, scanResult.name, scanResult.parallel !== "Base" ? scanResult.parallel : "", scanResult.year].filter(Boolean).join(" "))}`, color: "#00C896" },
+                      { label: "Sports Card Investor", url: `https://www.sportscardsinvestor.com/card-prices/?s=${encodeURIComponent([scanResult.player, scanResult.name, scanResult.parallel !== "Base" ? scanResult.parallel : "", scanResult.year].filter(Boolean).join(" "))}`, color: "#1d4ed8" },
+                      { label: "eBay Sold", url: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent([scanResult.player, scanResult.name, scanResult.parallel !== "Base" ? scanResult.parallel : "", scanResult.year, "PSA"].filter(Boolean).join(" "))}&LH_Complete=1&LH_Sold=1`, color: "#E53238" },
+                    ].map(b => (
+                      <a key={b.label} href={b.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.72rem", padding: "5px 12px", borderRadius: "20px", background: b.color + "15", color: b.color, border: `1px solid ${b.color}33`, textDecoration: "none", fontWeight: "700", fontFamily: "'Barlow Condensed', sans-serif" }}>
+                        {b.label} ↗
+                      </a>
+                    ))}
+                  </div>
+                </div>
               )}
               {scanResult.confidence === "low" && (
                 <div style={{ margin: "0 18px 14px", background: "rgba(255,184,0,0.08)", border: "1px solid rgba(255,184,0,0.2)", borderRadius: "8px", padding: "10px 14px" }}>
@@ -645,14 +663,24 @@ function CardSearch({ collection, setCollection }) {
               <div style={{ padding: "0 18px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
                 {!saved ? (
                   <>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "0.65rem", color: "#555", display: "block", marginBottom: "4px", letterSpacing: "1px", textTransform: "uppercase", fontFamily: "'Barlow Condensed', sans-serif" }}>What did you pay? ($)</label>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                      <div>
+                        <label style={{ fontSize: "0.65rem", color: "#555", display: "block", marginBottom: "4px", letterSpacing: "1px", textTransform: "uppercase", fontFamily: "'Barlow Condensed', sans-serif" }}>What you paid ($)</label>
                         <input
                           type="number"
                           value={buyPrice}
                           onChange={e => setBuyPrice(e.target.value)}
                           placeholder="0.00"
+                          style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", borderRadius: "8px", color: "#e2e2ee", padding: "8px 12px", fontFamily: "inherit", fontSize: "0.85rem" }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "0.65rem", color: "#555", display: "block", marginBottom: "4px", letterSpacing: "1px", textTransform: "uppercase", fontFamily: "'Barlow Condensed', sans-serif" }}>Current value ($)</label>
+                        <input
+                          type="number"
+                          value={currentValue}
+                          onChange={e => setCurrentValue(e.target.value)}
+                          placeholder="Check SCP above"
                           style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", borderRadius: "8px", color: "#e2e2ee", padding: "8px 12px", fontFamily: "inherit", fontSize: "0.85rem" }}
                         />
                       </div>
@@ -664,7 +692,7 @@ function CardSearch({ collection, setCollection }) {
                       <button onClick={() => { setScanMode(false); setSearched(true); }} style={{ padding: "10px 16px", borderRadius: "8px", background: "#1d4ed8", border: "none", color: "white", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", fontFamily: "inherit" }}>
                         Search Prices →
                       </button>
-                      <button onClick={() => { setPreviewUrl(null); setScanResult(null); setSaved(false); setBuyPrice(""); fileRef.current.click(); }} style={{ padding: "10px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", color: "#888", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>
+                      <button onClick={() => { setPreviewUrl(null); setScanResult(null); setSaved(false); setBuyPrice(""); setCurrentValue(""); fileRef.current.click(); }} style={{ padding: "10px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", color: "#888", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>
                         Scan Another
                       </button>
                     </div>
@@ -675,7 +703,7 @@ function CardSearch({ collection, setCollection }) {
                       <div style={{ fontWeight: "700", color: "#00C896", fontSize: "0.9rem" }}>✓ Added to Collection!</div>
                       <div style={{ fontSize: "0.75rem", color: "#555", marginTop: "2px", fontFamily: "'Barlow Condensed', sans-serif" }}>Go to My Collection to see it</div>
                     </div>
-                    <button onClick={() => { setPreviewUrl(null); setScanResult(null); setSaved(false); setBuyPrice(""); }} style={{ padding: "8px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", color: "#888", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>
+                    <button onClick={() => { setPreviewUrl(null); setScanResult(null); setSaved(false); setBuyPrice(""); setCurrentValue(""); }} style={{ padding: "8px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", color: "#888", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>
                       Scan Another
                     </button>
                   </div>
