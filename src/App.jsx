@@ -388,16 +388,39 @@ function CardSearch() {
     setScanResult(null);
     setSearched(false);
 
-    // Show preview
-    const reader = new FileReader();
-    reader.onload = (ev) => setPreviewUrl(ev.target.result);
-    reader.readAsDataURL(file);
+    // Show preview using object URL (works with HEIC)
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
 
-    // Convert to base64 for API
+    // Convert to base64 for API — force JPEG conversion for all formats including HEIC
     const base64 = await new Promise((resolve) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result.split(",")[1]);
-      r.readAsDataURL(file);
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        // Cap size for performance
+        const maxSize = 1200;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxSize || h > maxSize) {
+          if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+          else { w = Math.round(w * maxSize / h); h = maxSize; }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        const jpeg = canvas.toDataURL("image/jpeg", 0.92);
+        URL.revokeObjectURL(objectUrl);
+        resolve(jpeg.split(",")[1]);
+      };
+      img.onerror = () => {
+        // Fallback to FileReader if canvas fails
+        const r = new FileReader();
+        r.onload = () => resolve(r.result.split(",")[1]);
+        r.readAsDataURL(file);
+      };
+      img.src = objectUrl;
     });
 
     try {
@@ -441,7 +464,7 @@ Respond ONLY in valid JSON with NO extra text:
           messages: [{
             role: "user",
             content: [
-              { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
+              { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64 } },
               { type: "text", text: "Identify this trading card completely. Use every visual clue available — jersey numbers, team colors, card design, logos, foil patterns, everything. Commit to your best answer for every field." }
             ]
           }]
