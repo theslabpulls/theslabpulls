@@ -428,6 +428,9 @@ function CardSearch() {
       const data = await res.json();
       const rawText = data.result || "";
       
+      // Debug — show raw response in notes if parsing fails
+      console.log("RAW API RESPONSE:", rawText);
+      
       // Try multiple JSON extraction methods
       let parsed = null;
       const cleanText = rawText.trim();
@@ -481,11 +484,10 @@ function CardSearch() {
           category: parsed.category || "other",
         });
       } else {
-        // Show raw response for debugging
         setScanResult({ 
-          name: "Parse error — tap Scan Another and retry", 
+          name: "Parse error", 
           confidence: "low", 
-          notes: rawText.slice(0, 100) 
+          notes: rawText ? rawText.slice(0, 150) : "Empty response from server"
         });
       }
     } catch (err) {
