@@ -8,7 +8,7 @@ const affiliate = {
   stockx: (q) => `https://stockx.com/search?s=${encodeURIComponent(q)}`,
   sci: (q) => `https://www.sportscardsinvestor.com/card-prices/?s=${encodeURIComponent(q)}`,
   scp: (q) => `https://www.sportscardspro.com/search-results?q=${encodeURIComponent(q)}`,
-  130point: (q) => `https://130point.com/sales/?query=${encodeURIComponent(q)}`,
+  point130: (q) => `https://130point.com/sales/?query=${encodeURIComponent(q)}`,
 };
 
 // ─── SAMPLE DATA ───────────────────────────────────────────────────
@@ -46,7 +46,7 @@ function AffiliateLinks({ name }) {
         { label: "eBay Sold", url: affiliate.ebaySold(name), color: "#E53238" },
         { label: "SCI Prices", url: affiliate.sci(name), color: "#1d4ed8" },
         { label: "Sports Card Pro", url: affiliate.scp(name), color: "#00C896" },
-        { label: "130point", url: affiliate["130point"](name), color: "#FFB800" },
+        { label: "130point", url: affiliate.point130(name), color: "#FFB800" },
         { label: "TCGplayer", url: affiliate.tcg(name), color: "#7B61FF" },
       ].map(b => (
         <a key={b.label} href={b.url} target="_blank" rel="noopener noreferrer" style={{
