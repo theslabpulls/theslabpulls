@@ -548,7 +548,7 @@ function CardSearch() {
             onClick={() => fileRef.current?.click()}
             style={{ background: "#12121e", borderRadius: "14px", border: `2px dashed ${scanning ? "#1d4ed8" : "#2a2a3e"}`, padding: "32px", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", cursor: "pointer", transition: "all 0.2s" }}
           >
-            <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoScan} style={{ display: "none" }} />
+            <input ref={fileRef} type="file" accept="image/*,image/heic,image/heif" onChange={handlePhotoScan} style={{ display: "none" }} />
 
             {previewUrl ? (
               <img src={previewUrl} alt="Card" style={{ maxHeight: "200px", maxWidth: "100%", borderRadius: "8px", objectFit: "contain" }} />
@@ -561,9 +561,12 @@ function CardSearch() {
             )}
 
             {scanning && (
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#1d4ed8", fontSize: "0.85rem", fontWeight: "700" }}>
-                <div style={{ width: "16px", height: "16px", borderRadius: "50%", border: "2px solid #1d4ed8", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-                Identifying card...
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#1d4ed8", fontSize: "0.85rem", fontWeight: "700" }}>
+                  <div style={{ width: "16px", height: "16px", borderRadius: "50%", border: "2px solid #1d4ed8", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                  Processing image...
+                </div>
+                <div style={{ fontSize: "0.7rem", color: "#444", fontFamily: "'Barlow Condensed', sans-serif" }}>Sending to AI for identification</div>
               </div>
             )}
           </div>
