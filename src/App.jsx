@@ -398,8 +398,8 @@ function CardSearch() {
       const objectUrl = URL.createObjectURL(file);
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        // Keep higher resolution for better AI identification
-        const maxSize = 2000;
+        // 1600px max — sharp enough for text, small enough to send
+        const maxSize = 1600;
         let w = img.width;
         let h = img.height;
         if (w > maxSize || h > maxSize) {
@@ -412,10 +412,21 @@ function CardSearch() {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
         ctx.drawImage(img, 0, 0, w, h);
-        // Use high quality JPEG
-        const jpeg = canvas.toDataURL("image/jpeg", 0.98);
+        // 0.85 quality — good balance of sharpness vs file size
+        const jpeg = canvas.toDataURL("image/jpeg", 0.85);
         URL.revokeObjectURL(objectUrl);
-        resolve(jpeg.split(",")[1]);
+        const base64str = jpeg.split(",")[1];
+        // If still too large, reduce further
+        if (base64str.length > 1500000) {
+          const canvas2 = document.createElement("canvas");
+          canvas2.width = Math.round(w * 0.7);
+          canvas2.height = Math.round(h * 0.7);
+          const ctx2 = canvas2.getContext("2d");
+          ctx2.drawImage(img, 0, 0, canvas2.width, canvas2.height);
+          resolve(canvas2.toDataURL("image/jpeg", 0.8).split(",")[1]);
+        } else {
+          resolve(base64str);
+        }
       };
       img.onerror = () => {
         const r = new FileReader();
