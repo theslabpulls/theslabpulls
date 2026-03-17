@@ -420,54 +420,13 @@ function CardSearch() {
     });
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1500,
-          system: `You are the world's best trading card identification expert with 30 years of experience. You can identify ANY trading card from ANY angle or photo quality. You NEVER say you can't identify a card — you always make your best determination based on ALL visual clues available.
-
-CRITICAL RULES:
-- ALWAYS commit to a specific answer — never leave fields blank if you can make a reasonable guess
-- ALWAYS set confidence to "high" if you can read the player name, year, or set name clearly
-- ALWAYS set confidence to "medium" if you can identify the sport, brand, or character even if some details are unclear
-- Only set confidence to "low" if the image is completely unreadable or not a trading card at all
-- For sports cards: read the jersey number, team colors, uniform style, and logo to identify the player and team even if the name is hard to read
-- For Pokémon: identify by the artwork, colors, and card layout — you know every Pokémon
-- For the year: look at the card design, set logo, and any visible copyright text
-- For the set: identify from the set logo, card back design, foil pattern, and border style
-- For parallels: Prizm cards have rainbow/chrome shine, Holo cards have holographic patterns, Refractors have a refractive shine
-- For condition: NM means near perfect, LP means light wear on corners/edges, MP means noticeable wear
-- For estimated value: give a specific dollar range based on your knowledge of the current market — never say Unknown
-
-Respond ONLY in valid JSON with NO extra text:
-{
-  "name": "specific card name — never generic",
-  "player": "full player or character name",
-  "year": "4 digit year — make your best guess from card design if not visible",
-  "set": "specific set name",
-  "cardNumber": "card number if visible or null",
-  "brand": "Panini|Topps|Upper Deck|Pokemon Company|Fleer|Donruss|Score|Bowman|Leaf",
-  "parallel": "Base|Prizm|Holo|Refractor|Silver|Gold|Rainbow|Chrome|Mosaic|Optic|null",
-  "category": "pokemon|sports|magic|yugioh|other",
-  "sport": "basketball|football|baseball|soccer|hockey|other|null",
-  "condition": "M|NM|LP|MP|HP",
-  "estimatedValue": "specific range like $15-25 or $100-150",
-  "confidence": "high|medium|low",
-  "notes": "key identifying detail that confirms this identification under 15 words"
-}`,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64 } },
-              { type: "text", text: "Identify this trading card completely. FIRST read any text visible on the card or slab label — player name, year, set name, card number, grade. Then use visual clues — jersey numbers, team colors, card design, logos, foil patterns. If this is a graded slab, read the label text carefully as it contains all the key information. Commit to your best answer for every field with HIGH confidence if you can read any text on the card or label." }
-            ]
-          }]
-        })
+        body: JSON.stringify({ base64, mediaType: "image/jpeg" })
       });
       const data = await res.json();
-      const rawText = data.content?.[0]?.text || "";
+      const rawText = data.result || "";
       
       // Try multiple JSON extraction methods
       let parsed = null;
