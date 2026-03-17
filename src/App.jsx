@@ -502,6 +502,14 @@ function CardSearch({ collection, setCollection }) {
         // Fix name field — don't duplicate parallel in name
         const parallelVal = parsed.parallel && parsed.parallel !== "Base" ? parsed.parallel : null;
         setScanResult(parsed);
+        // Auto-fill current value with AI estimate as starting point
+        if (parsed.estimatedValue) {
+          const nums = parsed.estimatedValue.match(/\d+/g);
+          if (nums && nums.length > 0) {
+            // Use the low end of the range as the starting estimate
+            setCurrentValue(nums[0]);
+          }
+        }
         setForm({
           name: parsed.name || "",
           player: parsed.player || "",
@@ -620,6 +628,7 @@ function CardSearch({ collection, setCollection }) {
                   { label: "Condition", value: scanResult.condition },
                   { label: "Category", value: CAT_LABELS[scanResult.category] || scanResult.category },
                   { label: "Grade", value: scanResult.grade || "Raw" },
+                  { label: "⚠️ AI Estimate", value: scanResult.estimatedValue },
                 ].map((s, i) => s.value && (
                   <div key={i} style={{ background: "rgba(255,255,255,0.03)", borderRadius: "8px", padding: "8px 12px" }}>
                     <div style={{ fontSize: "0.6rem", color: "#444", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "2px", fontFamily: "'Barlow Condensed', sans-serif" }}>{s.label}</div>
@@ -675,13 +684,15 @@ function CardSearch({ collection, setCollection }) {
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: "0.65rem", color: "#555", display: "block", marginBottom: "4px", letterSpacing: "1px", textTransform: "uppercase", fontFamily: "'Barlow Condensed', sans-serif" }}>Current value ($)</label>
+                        <label style={{ fontSize: "0.65rem", color: "#555", display: "block", marginBottom: "4px", letterSpacing: "1px", textTransform: "uppercase", fontFamily: "'Barlow Condensed', sans-serif" }}>
+                          Current value ($) {scanResult?.estimatedValue ? <span style={{ color: "#FFB800", fontSize: "0.6rem" }}>AI: {scanResult.estimatedValue} — verify!</span> : ""}
+                        </label>
                         <input
                           type="number"
                           value={currentValue}
                           onChange={e => setCurrentValue(e.target.value)}
                           placeholder="Check SCP above"
-                          style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", borderRadius: "8px", color: "#e2e2ee", padding: "8px 12px", fontFamily: "inherit", fontSize: "0.85rem" }}
+                          style={{ width: "100%", background: currentValue ? "rgba(255,184,0,0.08)" : "rgba(255,255,255,0.05)", border: `1px solid ${currentValue ? "rgba(255,184,0,0.3)" : "#2a2a3e"}`, borderRadius: "8px", color: "#e2e2ee", padding: "8px 12px", fontFamily: "inherit", fontSize: "0.85rem" }}
                         />
                       </div>
                     </div>
