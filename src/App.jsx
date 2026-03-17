@@ -3,8 +3,12 @@ import { useState, useEffect, useRef } from "react";
 // ─── AFFILIATE LINKS ───────────────────────────────────────────────
 const affiliate = {
   ebay: (q) => `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q + " trading card")}`,
+  ebaySold: (q) => `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q + " trading card")}&LH_Complete=1&LH_Sold=1`,
   tcg: (q) => `https://www.tcgplayer.com/search/all/product?q=${encodeURIComponent(q)}`,
   stockx: (q) => `https://stockx.com/search?s=${encodeURIComponent(q)}`,
+  sci: (q) => `https://www.sportscardsinvestor.com/card-prices/?s=${encodeURIComponent(q)}`,
+  scp: (q) => `https://www.sportscardspro.com/search-results?q=${encodeURIComponent(q)}`,
+  130point: (q) => `https://130point.com/sales/?query=${encodeURIComponent(q)}`,
 };
 
 // ─── SAMPLE DATA ───────────────────────────────────────────────────
@@ -39,9 +43,11 @@ function AffiliateLinks({ name }) {
   return (
     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
       {[
-        { label: "Find on eBay", url: affiliate.ebay(name), color: "#E53238" },
-        { label: "TCGplayer", url: affiliate.tcg(name), color: "#1d4ed8" },
-        { label: "StockX", url: affiliate.stockx(name), color: "#00c853" },
+        { label: "eBay Sold", url: affiliate.ebaySold(name), color: "#E53238" },
+        { label: "SCI Prices", url: affiliate.sci(name), color: "#1d4ed8" },
+        { label: "Sports Card Pro", url: affiliate.scp(name), color: "#00C896" },
+        { label: "130point", url: affiliate["130point"](name), color: "#FFB800" },
+        { label: "TCGplayer", url: affiliate.tcg(name), color: "#7B61FF" },
       ].map(b => (
         <a key={b.label} href={b.url} target="_blank" rel="noopener noreferrer" style={{
           fontSize: "0.7rem", padding: "4px 12px", borderRadius: "20px",
@@ -366,14 +372,36 @@ function CollectionView({ collection, setCollection }) {
 }
 
 // ─── CARD PRICE SEARCH ─────────────────────────────────────────────
-function CardSearch() {
+function CardSearch({ collection, setCollection }) {
   const [form, setForm] = useState({ name: "", player: "", year: "", set: "", grade: "", condition: "", category: "all" });
   const [searched, setSearched] = useState(false);
   const [scanMode, setScanMode] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [buyPrice, setBuyPrice] = useState("");
+  const [saved, setSaved] = useState(false);
   const fileRef = useRef(null);
+
+  const saveToCollection = () => {
+    if (!scanResult) return;
+    const estValue = parseFloat((scanResult.estimatedValue || "0").replace(/[^0-9.]/g, "")) || 0;
+    const newCard = {
+      id: Date.now(),
+      name: scanResult.player ? `${scanResult.player} ${scanResult.name || ""}`.trim() : (scanResult.name || "Unknown Card"),
+      set: [scanResult.brand, scanResult.set].filter(Boolean).join(" ") || "",
+      condition: scanResult.condition || "NM",
+      grade: scanResult.grade || "Raw",
+      buyPrice: parseFloat(buyPrice) || 0,
+      currentValue: estValue,
+      category: scanResult.category || "other",
+      qty: 1,
+      notes: `Scanned. ${scanResult.parallel && scanResult.parallel !== "Base" ? scanResult.parallel + " parallel. " : ""}${scanResult.notes || ""}`.trim(),
+      date: new Date().toISOString().split("T")[0],
+    };
+    setCollection([newCard, ...collection]);
+    setSaved(true);
+  };
 
   const buildQuery = () => {
     const parts = [form.name, form.player, form.year, form.set, form.grade, form.condition]
@@ -614,13 +642,44 @@ function CardSearch() {
                   </div>
                 </div>
               )}
-              <div style={{ padding: "0 18px 16px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                <button onClick={() => { setScanMode(false); setSearched(true); }} style={{ padding: "8px 18px", borderRadius: "8px", background: "#1d4ed8", border: "none", color: "white", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", fontFamily: "inherit" }}>
-                  Search This Card →
-                </button>
-                <button onClick={() => { setPreviewUrl(null); setScanResult(null); fileRef.current.click(); }} style={{ padding: "8px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", color: "#888", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>
-                  Scan Another
-                </button>
+              <div style={{ padding: "0 18px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                {!saved ? (
+                  <>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "0.65rem", color: "#555", display: "block", marginBottom: "4px", letterSpacing: "1px", textTransform: "uppercase", fontFamily: "'Barlow Condensed', sans-serif" }}>What did you pay? ($)</label>
+                        <input
+                          type="number"
+                          value={buyPrice}
+                          onChange={e => setBuyPrice(e.target.value)}
+                          placeholder="0.00"
+                          style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", borderRadius: "8px", color: "#e2e2ee", padding: "8px 12px", fontFamily: "inherit", fontSize: "0.85rem" }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                      <button onClick={saveToCollection} style={{ padding: "10px 20px", borderRadius: "8px", background: "#00C896", border: "none", color: "white", fontSize: "0.85rem", fontWeight: "700", cursor: "pointer", fontFamily: "inherit" }}>
+                        ✓ Add to Collection
+                      </button>
+                      <button onClick={() => { setScanMode(false); setSearched(true); }} style={{ padding: "10px 16px", borderRadius: "8px", background: "#1d4ed8", border: "none", color: "white", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", fontFamily: "inherit" }}>
+                        Search Prices →
+                      </button>
+                      <button onClick={() => { setPreviewUrl(null); setScanResult(null); setSaved(false); setBuyPrice(""); fileRef.current.click(); }} style={{ padding: "10px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", color: "#888", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>
+                        Scan Another
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ background: "rgba(0,200,150,0.1)", border: "1px solid rgba(0,200,150,0.3)", borderRadius: "10px", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontWeight: "700", color: "#00C896", fontSize: "0.9rem" }}>✓ Added to Collection!</div>
+                      <div style={{ fontSize: "0.75rem", color: "#555", marginTop: "2px", fontFamily: "'Barlow Condensed', sans-serif" }}>Go to My Collection to see it</div>
+                    </div>
+                    <button onClick={() => { setPreviewUrl(null); setScanResult(null); setSaved(false); setBuyPrice(""); }} style={{ padding: "8px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid #2a2a3e", color: "#888", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>
+                      Scan Another
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -689,38 +748,45 @@ function CardSearch() {
 
           {[
             {
-              label: "eBay — Sold Listings (Most Accurate)",
+              label: "Sports Card Investor",
+              sub: "Real-time market prices and population data",
+              url: `https://www.sportscardsinvestor.com/card-prices/?s=${encodeURIComponent(buildQuery())}`,
+              color: "#00C896",
+              tag: "BEST MARKET DATA",
+            },
+            {
+              label: "Sports Card Pro",
+              sub: "Price history, trends, and comps",
+              url: `https://www.sportscardspro.com/search-results?q=${encodeURIComponent(buildQuery())}`,
+              color: "#1d4ed8",
+              tag: "PRICE HISTORY",
+            },
+            {
+              label: "eBay — Sold Listings",
               sub: "See what this card actually sold for recently",
               url: buildEbayUrl(true),
               color: "#E53238",
-              tag: "BEST FOR REAL PRICES",
-            },
-            {
-              label: "eBay — Active Listings",
-              sub: "See what people are currently asking",
-              url: buildEbayUrl(false),
-              color: "#E53238",
-              tag: "CURRENT ASKING PRICE",
-            },
-            {
-              label: "TCGplayer Market Price",
-              sub: "Best for Pokémon, Magic, and Yu-Gi-Oh",
-              url: buildTCGUrl(),
-              color: "#1d4ed8",
-              tag: "GREAT FOR POKEMON",
+              tag: "REAL SOLD PRICES",
             },
             {
               label: "130point — Graded Sales",
               sub: "PSA and BGS graded card sales history",
               url: build130pointUrl(),
-              color: "#00C896",
+              color: "#FFB800",
               tag: "GRADED CARDS",
+            },
+            {
+              label: "TCGplayer Market Price",
+              sub: "Best for Pokémon, Magic, and Yu-Gi-Oh",
+              url: buildTCGUrl(),
+              color: "#7B61FF",
+              tag: "POKEMON / MAGIC",
             },
             {
               label: "PSA Auction Prices",
               sub: "Official PSA auction price history",
               url: buildPSAUrl(),
-              color: "#FFB800",
+              color: "#E53238",
               tag: "PSA CERTIFIED",
             },
           ].map((s, i) => (
@@ -740,7 +806,7 @@ function CardSearch() {
 
           <div style={{ background: "rgba(29,78,216,0.06)", borderRadius: "10px", border: "1px solid rgba(29,78,216,0.15)", padding: "12px 16px", marginTop: "4px" }}>
             <div style={{ fontSize: "0.7rem", color: "#1d4ed8", fontWeight: "700", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "1px", marginBottom: "4px" }}>💡 PRO TIP</div>
-            <div style={{ fontSize: "0.78rem", color: "#666", lineHeight: 1.5 }}>Always check eBay <strong style={{ color: "#aaa" }}>sold listings</strong> first — that's the real market price. Active listings can be inflated. What a card sold for last week is what it's actually worth today.</div>
+            <div style={{ fontSize: "0.78rem", color: "#666", lineHeight: 1.5 }}>Start with <strong style={{ color: "#aaa" }}>Sports Card Investor</strong> for market price, then cross-check with <strong style={{ color: "#aaa" }}>eBay sold listings</strong> for what it actually traded for. Those two together give you the real number.</div>
           </div>
         </div>
       )}
@@ -1104,7 +1170,7 @@ export default function TheSlabPulls() {
       {/* Content */}
       <div style={{ maxWidth: "900px", margin: "0 auto", padding: "24px 16px" }}>
         {tab === "collection" && <CollectionView collection={collection} setCollection={setCollection} />}
-        {tab === "search" && <CardSearch />}
+        {tab === "search" && <CardSearch collection={collection} setCollection={setCollection} />}
         {tab === "flip" && <FlipFinder />}
         {tab === "want" && <WantList wantList={wantList} setWantList={setWantList} />}
         {tab === "sold" && <SoldTracker sold={sold} setSold={setSold} />}
