@@ -398,8 +398,8 @@ function CardSearch() {
       const objectUrl = URL.createObjectURL(file);
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        // Cap size for performance
-        const maxSize = 1200;
+        // Keep higher resolution for better AI identification
+        const maxSize = 2000;
         let w = img.width;
         let h = img.height;
         if (w > maxSize || h > maxSize) {
@@ -409,13 +409,15 @@ function CardSearch() {
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
         ctx.drawImage(img, 0, 0, w, h);
-        const jpeg = canvas.toDataURL("image/jpeg", 0.92);
+        // Use high quality JPEG
+        const jpeg = canvas.toDataURL("image/jpeg", 0.98);
         URL.revokeObjectURL(objectUrl);
         resolve(jpeg.split(",")[1]);
       };
       img.onerror = () => {
-        // Fallback to FileReader if canvas fails
         const r = new FileReader();
         r.onload = () => resolve(r.result.split(",")[1]);
         r.readAsDataURL(file);
@@ -465,7 +467,7 @@ Respond ONLY in valid JSON with NO extra text:
             role: "user",
             content: [
               { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64 } },
-              { type: "text", text: "Identify this trading card completely. Use every visual clue available — jersey numbers, team colors, card design, logos, foil patterns, everything. Commit to your best answer for every field." }
+              { type: "text", text: "Identify this trading card completely. FIRST read any text visible on the card or slab label — player name, year, set name, card number, grade. Then use visual clues — jersey numbers, team colors, card design, logos, foil patterns. If this is a graded slab, read the label text carefully as it contains all the key information. Commit to your best answer for every field with HIGH confidence if you can read any text on the card or label." }
             ]
           }]
         })
