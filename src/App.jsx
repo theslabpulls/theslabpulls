@@ -430,27 +430,49 @@ function CardSearch() {
       
       // Try multiple JSON extraction methods
       let parsed = null;
+      const cleanText = rawText.trim();
       
       // Method 1: direct parse
-      try { parsed = JSON.parse(rawText); } catch {}
+      try { parsed = JSON.parse(cleanText); } catch {}
       
       // Method 2: strip markdown fences
       if (!parsed) {
-        try { parsed = JSON.parse(rawText.replace(/```json|```/g, "").trim()); } catch {}
+        try { parsed = JSON.parse(cleanText.replace(/```json\n?|\n?```/g, "").trim()); } catch {}
       }
       
-      // Method 3: extract JSON object from text
+      // Method 3: extract first JSON object — most reliable
       if (!parsed) {
         try {
-          const match = rawText.match(/\{[\s\S]*\}/);
-          if (match) parsed = JSON.parse(match[0]);
+          const start = cleanText.indexOf("{");
+          const end = cleanText.lastIndexOf("}");
+          if (start !== -1 && end !== -1) {
+            parsed = JSON.parse(cleanText.slice(start, end + 1));
+          }
+        } catch {}
+      }
+
+      // Method 4: try fixing common JSON issues
+      if (!parsed) {
+        try {
+          const fixed = cleanText
+            .replace(/```json\n?|\n?```/g, "")
+            .replace(/[\u201C\u201D]/g, '"')
+            .replace(/[\u2018\u2019]/g, "'")
+            .trim();
+          const start = fixed.indexOf("{");
+          const end = fixed.lastIndexOf("}");
+          if (start !== -1 && end !== -1) {
+            parsed = JSON.parse(fixed.slice(start, end + 1));
+          }
         } catch {}
       }
 
       if (parsed) {
+        // Fix name field — don't duplicate parallel in name
+        const parallelVal = parsed.parallel && parsed.parallel !== "Base" ? parsed.parallel : null;
         setScanResult(parsed);
         setForm({
-          name: [parsed.parallel !== "Base" ? parsed.parallel : null, parsed.name].filter(Boolean).join(" ") || "",
+          name: parsed.name || "",
           player: parsed.player || "",
           year: parsed.year || "",
           set: [parsed.brand, parsed.set].filter(Boolean).join(" ") || "",
